@@ -1,0 +1,26 @@
+[project]
+name = "app-program-sportif"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "DeSpy3", email = "mael.sohier@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.144.0",
+    "pydantic>=2.14.1",
+]
+
+[project.scripts]
+app-program-sportif = "app_program_sportif:main"
+
+[build-system]
+requires = ["uv_build>=0.12.24,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.17.1",
+]
