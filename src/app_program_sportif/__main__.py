@@ -1,9 +1,25 @@
-from .core.questionnaire import build_profile
+from .core.questionnaire import DAY_LABELS, build_profile
+from .planner.endurance import build_plan
 
 
 def main() -> None:
     profile = build_profile()
-    print(profile.model_dump_json(indent=2))
+    try:
+        plan = build_plan(profile)
+    except ValueError as error:
+        print(f"Impossible de construire le plan : {error}")
+        return
+    for week in plan.weeks:
+        flag = " (décharge)" if week.is_deload else ""
+        print(
+            f"\nSemaine {week.number} - {week.phase.value}{flag}"
+            f" - {week.total_minutes} min"
+        )
+        for s in week.sessions:
+            print(
+                f"  {DAY_LABELS[s.day]:<9} {s.kind.value:<8}"
+                f" {s.duration_min} min  RPE {s.rpe}  {s.notes}"
+            )
 
 
 if __name__ == "__main__":
