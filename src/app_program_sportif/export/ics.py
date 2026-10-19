@@ -1,6 +1,6 @@
 """Export d'un plan au format calendrier iCalendar (.ics)."""
 
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 
 from ..core.plan import Plan, Session, SessionKind
 from ..core.profile import Sport
@@ -49,7 +49,7 @@ def plan_to_ics(
 ) -> str:
     """Génère le calendrier. La semaine 1 commence le lundi de `start`."""
     monday = start - timedelta(days=start.weekday())
-    stamp = stamp or datetime.now(timezone.utc)
+    stamp = stamp or datetime.now(UTC)
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
