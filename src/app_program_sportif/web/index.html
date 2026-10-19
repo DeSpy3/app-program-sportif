@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Programme sportif</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--text:#1d2330;--muted:#5d6678;--line:#dde1e8;--accent:#1f6feb;--accent-text:#fff;--deload:#e8f5e9;--error:#b42318}
+@media (prefers-color-scheme: dark){:root{--bg:#14171c;--card:#1d2128;--text:#e8eaee;--muted:#9aa3b2;--line:#323946;--accent:#4c8dff;--accent-text:#0b1020;--deload:#1b2b21;--error:#ff8a80}}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.45}
+main{max-width:860px;margin:0 auto;padding:16px}
+h1{font-size:1.5rem;margin:8px 0 16px}
+fieldset{border:1px solid var(--line);border-radius:10px;background:var(--card);margin:0 0 14px;padding:12px 14px}
+legend{font-weight:600;padding:0 6px}
+label{display:block;margin:8px 0;font-size:.95rem}
+label.check{display:inline-flex;align-items:center;gap:6px;margin:6px 12px 6px 0}
+input[type=number],input[type=text],input[type=date],select{display:block;width:100%;max-width:360px;margin-top:4px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font:inherit}
+button{font:inherit;padding:9px 14px;border:0;border-radius:8px;background:var(--accent);color:var(--accent-text);cursor:pointer}
+button.secondary{background:transparent;color:var(--text);border:1px solid var(--line)}
+.row{display:flex;flex-wrap:wrap;gap:0 16px}
+.row label{flex:1 1 140px}
+.sport{border-top:1px solid var(--line);padding:6px 0}
+.details{padding:0 0 6px 24px}
+#message,#plan-message{white-space:pre-line;margin:10px 0;color:var(--muted)}
+#message.error{color:var(--error)}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:12px}
+.toolbar label{margin:0}
+.week{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:12px}
+.week.deload{background:var(--deload)}
+.week header{display:flex;justify-content:space-between;align-items:baseline}
+.week h3{margin:0;font-size:1.05rem}
+.week ul{list-style:none;margin:8px 0;padding:0}
+.session{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.session .info{flex:1 1 260px}
+.session label{margin:0}
+.session select{display:inline-block;width:auto;margin-left:4px;padding:4px}
+.notes{color:var(--muted);font-size:.85rem}
+footer{color:var(--muted);font-size:.8rem;margin:20px 0}
+</style>
+</head>
+<body>
+<main>
+<h1>Programme sportif</h1>
+
+<section id="form-section">
+<form id="profile-form">
+  <fieldset>
+    <legend>Profil</legend>
+    <div class="row">
+      <label>Âge <input type="number" id="age" min="16" max="100" required></label>
+      <label>Poids (kg) <input type="number" id="weight" min="20" max="300" step="0.1" required></label>
+      <label>Taille (cm) <input type="number" id="height" min="100" max="250" step="0.1" required></label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Sports</legend>
+    <div id="sports"></div>
+    <label class="check" id="group-label" hidden><input type="checkbox" id="group" checked> Je considère la course à pied et le trail comme une même catégorie</label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Disponibilités</legend>
+    <div class="row">
+      <label>Séances par semaine <input type="number" id="days-per-week" min="1" max="7" value="3" required></label>
+      <label>Durée d'une séance (min) <input type="number" id="minutes" min="15" max="240" value="60" required></label>
+    </div>
+    <div>Jours où tu n'es jamais disponible :</div>
+    <div id="days"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Matériel et santé</legend>
+    <label>Matériel disponible (séparé par des virgules) <input type="text" id="equipment"></label>
+    <label>Blessures ou zones à ménager (séparées par des virgules) <input type="text" id="injuries"></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Durée du plan</legend>
+    <label>Nombre de semaines (vide = automatique) <input type="number" id="plan-length" min="4" max="24"></label>
+  </fieldset>
+
+  <button type="submit">Générer mon plan</button>
+  <div id="message" role="alert"></div>
+</form>
+</section>
+
+<section id="plan-section" hidden>
+  <div class="toolbar">
+    <button type="button" id="new-plan" class="secondary">Nouveau plan</button>
+    <label>Début de la semaine 1 <input type="date" id="start"></label>
+    <button type="button" id="dl-ics">Calendrier (.ics)</button>
+    <button type="button" id="dl-json" class="secondary">Plan (JSON)</button>
+  </div>
+  <div id="plan-message" role="status"></div>
+  <div id="plan-weeks"></div>
+</section>
+
+<footer>Plans indicatifs, qui ne remplacent pas l'avis d'un professionnel de santé ou d'un coach.</footer>
+</main>
+
+<script>
+const SPORTS = {running: "Course à pied", trail: "Trail", strength: "Musculation / renforcement"};
+const SPORT_SHORT = {running: "Course", trail: "Trail", strength: "Musculation"};
+const LEVELS = {beginner: "Débutant", intermediate: "Intermédiaire", advanced: "Avancé"};
+const DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+const PHASES = {base: "Base", build: "Développement", peak: "Pic", taper: "Affûtage"};
+const KINDS = {easy: "facile", long: "sortie longue", quality: "qualité", strength: "musculation"};
+
+const $ = (id) => document.getElementById(id);
+const int = (value) => parseInt(value, 10);
+const num = (value) => parseFloat(String(value).replace(",", "."));
+const splitList = (text) => text.split(",").map((x) => x.trim()).filter(Boolean);
+
+let currentPlan = null;
+let currentProfile = null;
+let feedbacks = {};
+
+function options(map) {
+  return Object.entries(map).map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
+}
+
+function rpeOptions(selected) {
+  let html = '<option value="">-</option>';
+  for (let i = 1; i <= 10; i++) {
+    html += `<option value="${i}"${String(i) === String(selected) ? " selected" : ""}>${i}</option>`;
+  }
+  return html;
+}
+
+function escapeHtml(text) {
+  return text.replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+}
+
+function nextMonday() {
+  const d = new Date();
+  d.setDate(d.getDate() + 7 - ((d.getDay() + 6) % 7));
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${month}-${day}`;
+}
+
+function save() {
+  try {
+    localStorage.setItem("sport-state", JSON.stringify({plan: currentPlan, profile: currentProfile, feedbacks}));
+  } catch (error) { /* stockage indisponible : on continue sans */ }
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem("sport-state");
+    if (raw) {
+      const state = JSON.parse(raw);
+      currentPlan = state.plan;
+      currentProfile = state.profile;
+      feedbacks = state.feedbacks || {};
+    }
+  } catch (error) { /* données illisibles : on repart de zéro */ }
+}
+
+function setMessage(text, isError) {
+  const box = $("message");
+  box.textContent = text;
+  box.className = isError ? "error" : "";
+}
+
+function setPlanMessage(text) {
+  $("plan-message").textContent = text;
+}
+
+function buildForm() {
+  const box = $("sports");
+  for (const [key, label] of Object.entries(SPORTS)) {
+    const div = document.createElement("div");
+    div.className = "sport";
+    div.innerHTML = `
+      <label class="check"><input type="checkbox" id="use-${key}"> ${label}</label>
+      <div class="details" id="details-${key}" hidden>
+        <label>Niveau <select id="level-${key}">${options(LEVELS)}</select></label>
+        <label>Semaines de pratique <input type="number" id="weeks-${key}" min="0" value="0"></label>
+        <label>Heures par semaine <input type="number" id="hours-${key}" min="0" max="40" step="0.5" value="0"></label>
+        <label>Objectif (facultatif) <input type="text" id="goal-${key}" placeholder="ex. trail de 30 km"></label>
+        <label>Date de l'objectif <input type="date" id="date-${key}"></label>
+      </div>`;
+    box.appendChild(div);
+    div.querySelector(`#use-${key}`).addEventListener("change", onSportsChange);
+  }
+  $("days").innerHTML = DAYS.map((name, i) =>
+    `<label class="check"><input type="checkbox" id="off-${i}"> ${name.slice(0, 3)}</label>`).join("");
+}
+
+function onSportsChange() {
+  for (const key of Object.keys(SPORTS)) {
+    $("details-" + key).hidden = !$("use-" + key).checked;
+  }
+  $("group-label").hidden = !($("use-running").checked && $("use-trail").checked);
+}
+
+function collectProfile() {
+  const sports = Object.keys(SPORTS).filter((key) => $("use-" + key).checked);
+  if (!sports.length) {
+    throw new Error("Choisis au moins un sport.");
+  }
+  const practices = sports.map((key) => ({
+    sport: key,
+    level: $("level-" + key).value,
+    weeks_of_practice: int($("weeks-" + key).value),
+    weekly_hours: num($("hours-" + key).value),
+  }));
+  const goals = sports.filter((key) => $("goal-" + key).value.trim()).map((key) => ({
+    sport: key,
+    description: $("goal-" + key).value.trim(),
+    target_date: $("date-" + key).value || null,
+  }));
+  const unavailable = DAYS.map((_, i) => i).filter((i) => $("off-" + i).checked);
+  const grouped = sports.includes("running") && sports.includes("trail") && $("group").checked;
+  return {
+    age: int($("age").value),
+    weight_kg: num($("weight").value),
+    height_cm: num($("height").value),
+    practices,
+    sport_groups: grouped ? [["running", "trail"]] : [],
+    goals,
+    availability: {
+      days_per_week: int($("days-per-week").value),
+      minutes_per_session: int($("minutes").value),
+      unavailable_days: unavailable,
+    },
+    equipment: splitList($("equipment").value),
+    injuries: splitList($("injuries").value),
+  };
+}
+
+async function errorText(response) {
+  try {
+    const data = await response.json();
+    const detail = data.detail;
+    if (Array.isArray(detail)) {
+      return detail.map((e) => `${(e.loc || []).slice(1).join(" > ")} : ${e.msg}`).join("\n");
+    }
+    return String(detail);
+  } catch (error) {
+    return "Erreur " + response.status;
+  }
+}
+
+async function postJson(url, body) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(await errorText(response));
+  }
+  return response;
+}
+
+function download(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function sessionLabel(session) {
+  if (session.kind === "strength") {
+    return "Musculation";
+  }
+  return `${SPORT_SHORT[session.sport]} - ${KINDS[session.kind]}`;
+}
+
+function renderPlan() {
+  const container = $("plan-weeks");
+  container.innerHTML = "";
+  for (const week of currentPlan.weeks) {
+    const card = document.createElement("article");
+    card.className = "week" + (week.is_deload ? " deload" : "");
+    card.dataset.week = week.number;
+    const rows = week.sessions.map((s) => {
+      const fb = feedbacks[`${week.number}-${s.day}`] || {};
+      return `
+        <li class="session" data-day="${s.day}">
+          <div class="info"><strong>${DAYS[s.day]}</strong> · ${sessionLabel(s)} · ${s.duration_min} min · effort prévu ${s.rpe}/10
+            ${s.notes ? `<div class="notes">${escapeHtml(s.notes)}</div>` : ""}</div>
+          <label class="check"><input type="checkbox" class="done"${fb.completed ? " checked" : ""}> Fait</label>
+          <label>Effort réel <select class="rpe">${rpeOptions(fb.rpe)}</select></label>
+        </li>`;
+    }).join("");
+    card.innerHTML = `
+      <header><h3>Semaine ${week.number} · ${PHASES[week.phase]}${week.is_deload ? " (décharge)" : ""}</h3><span>${week.total_minutes} min</span></header>
+      <ul>${rows}</ul>
+      <button type="button" class="adjust" data-week="${week.number}">Valider la semaine et ajuster la suite</button>`;
+    container.appendChild(card);
+  }
+}
+
+function showPlan() {
+  $("form-section").hidden = true;
+  $("plan-section").hidden = false;
+  renderPlan();
+}
+
+$("profile-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  setMessage("", false);
+  try {
+    const profile = collectProfile();
+    const length = $("plan-length").value ? int($("plan-length").value) : null;
+    const response = await postJson("/plan", {profile, weeks: length});
+    currentProfile = profile;
+    currentPlan = await response.json();
+    feedbacks = {};
+    save();
+    setPlanMessage("");
+    showPlan();
+  } catch (error) {
+    setMessage(error.message, true);
+  }
+});
+
+$("plan-weeks").addEventListener("change", (event) => {
+  const row = event.target.closest(".session");
+  if (!row) {
+    return;
+  }
+  const week = row.closest(".week").dataset.week;
+  feedbacks[`${week}-${row.dataset.day}`] = {
+    completed: row.querySelector(".done").checked,
+    rpe: row.querySelector(".rpe").value,
+  };
+  save();
+});
+
+$("plan-weeks").addEventListener("click", async (event) => {
+  const button = event.target.closest("button.adjust");
+  if (!button) {
+    return;
+  }
+  const week = int(button.dataset.week);
+  const rows = document.querySelectorAll(`.week[data-week="${week}"] .session`);
+  const list = [...rows].map((row) => ({
+    week,
+    day: int(row.dataset.day),
+    completed: row.querySelector(".done").checked,
+    actual_rpe: row.querySelector(".rpe").value ? int(row.querySelector(".rpe").value) : null,
+  }));
+  const before = JSON.stringify(currentPlan);
+  try {
+    const response = await postJson("/plan/adjust", {
+      plan: currentPlan,
+      week,
+      feedbacks: list,
+      max_minutes: Math.max(20, currentProfile.availability.minutes_per_session),
+    });
+    currentPlan = await response.json();
+    save();
+    renderPlan();
+    setPlanMessage(JSON.stringify(currentPlan) === before
+      ? "Aucun ajustement nécessaire : le plan reste identique."
+      : `Plan ajusté à partir de la semaine ${week + 1}.`);
+  } catch (error) {
+    setPlanMessage(error.message);
+  }
+});
+
+$("new-plan").addEventListener("click", () => {
+  $("plan-section").hidden = true;
+  $("form-section").hidden = false;
+});
+
+$("dl-ics").addEventListener("click", async () => {
+  try {
+    const response = await postJson("/export/ics", {plan: currentPlan, start: $("start").value || null});
+    download(await response.blob(), "plan.ics");
+  } catch (error) {
+    setPlanMessage(error.message);
+  }
+});
+
+$("dl-json").addEventListener("click", () => {
+  download(new Blob([JSON.stringify(currentPlan, null, 2)], {type: "application/json"}), "plan.json");
+});
+
+buildForm();
+load();
+$("start").value = nextMonday();
+if (currentPlan && currentProfile) {
+  showPlan();
+}
+</script>
+</body>
+</html>
