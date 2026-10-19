@@ -58,3 +58,18 @@ def test_adjust_endpoint():
     assert response.status_code == 200
     new_total = response.json()["weeks"][1]["total_minutes"]
     assert new_total < plan["weeks"][1]["total_minutes"]
+
+
+def test_index_page():
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "Programme sportif" in response.text
+
+
+def test_export_ics_from_plan():
+    plan = client.post("/plan", json={"profile": PROFILE}).json()
+    response = client.post("/export/ics", json={"plan": plan, "start": "2026-10-26"})
+    assert response.status_code == 200
+    assert "BEGIN:VCALENDAR" in response.text
+    assert "DTSTART:20261026T180000" in response.text
+    assert "attachment" in response.headers["content-disposition"]
