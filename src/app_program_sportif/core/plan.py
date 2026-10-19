@@ -18,6 +18,7 @@ class SessionKind(str, Enum):
     EASY = "easy"
     LONG = "long"
     QUALITY = "quality"
+    STRENGTH = "strength"
 
 
 class Session(BaseModel):

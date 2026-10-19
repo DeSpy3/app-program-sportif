@@ -1,14 +1,17 @@
 from .core.questionnaire import DAY_LABELS, build_profile
-from .planner.endurance import build_plan
+from .planner.combined import build_combined_plan
 
 
 def main() -> None:
     profile = build_profile()
     try:
-        plan = build_plan(profile)
+        plan = build_combined_plan(profile)
     except ValueError as error:
         print(f"Impossible de construire le plan : {error}")
         return
+    if profile.injuries:
+        print("\nAttention : adapte les exercices à tes blessures et "
+              "demande l'avis d'un professionnel de santé si besoin.")
     for week in plan.weeks:
         flag = " (décharge)" if week.is_deload else ""
         print(

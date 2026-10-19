@@ -54,7 +54,10 @@ def session_kinds(n: int, phase: Phase, deload: bool) -> list[SessionKind]:
 
 
 def build_plan(
-    profile: Profile, weeks: int | None = None, today: date | None = None
+    profile: Profile,
+    weeks: int | None = None,
+    today: date | None = None,
+    days: list[int] | None = None,
 ) -> Plan:
     sport = primary_sport(profile)
     n_weeks = weeks or plan_length(profile, sport, today)
@@ -63,9 +66,9 @@ def build_plan(
     practice = next(p for p in profile.practices if p.sport == sport)
     start = practice.weekly_hours * 60 or DEFAULT_START_MINUTES[practice.level]
     availability = profile.availability
-    cap = availability.days_per_week * availability.minutes_per_session
+    days = days if days is not None else pick_days(availability)
+    cap = len(days) * availability.minutes_per_session
     volumes = volume_curve(start, phases, cap)
-    days = pick_days(availability)
 
     result = []
     for number, (phase, volume) in enumerate(zip(phases, volumes), 1):
